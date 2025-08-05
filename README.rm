@@ -1,0 +1,87 @@
+# Kindleスクリーンショット自動化ツール（Kindless）
+
+## 概要
+
+**Kindless** は、Kindle for PCアプリケーションから自動でスクリーンショットを取得し、画像ファイルとして保存するPython製の自動化ツールです。特にコミックのページキャプチャや、画像トリミング・グレースケール変換に対応しています。
+
+## 主な機能
+
+* Kindle for PC画面を自動でキャプチャ
+* コミックページのトリミング機能
+* グレースケール画像の自動検出と保存形式の最適化
+* 保存する画像のフォーマット設定（PNG推奨）
+
+## 必要な環境
+
+以下の環境が必要です。
+
+* Windows 10以上
+* Python 3.x（推奨3.9以降）
+* Kindle for PCアプリケーション（Windows用）
+* Pythonライブラリ:
+
+  * wxPython
+  * pyautogui
+  * numpy
+  * opencv-python (cv2)
+  * Pillow (PIL)
+
+インストール方法は以下の通りです。
+
+```
+pip install wxPython pyautogui numpy opencv-python Pillow
+```
+
+## 使い方
+
+### 1. 設定ファイルの編集
+
+実行前に、`kindless.ini`を編集し、キャプチャの保存先や各種設定を調整します。
+
+* `base_save_folder`: スクリーンショットを保存するフォルダ
+* `overwrite`: 同名フォルダが存在する場合の挙動（上書きするか否か）
+* `trim_after_capture`: コミック用のトリミング機能を有効化
+* その他、詳細はINIファイル内のコメントを参照してください。
+
+設定例:
+
+```
+[KINDLESS]
+window_title = Kindle
+execute_filename = kindle.exe
+nextpage_key = right
+fullscreen_key = f11
+pagejump_key = ctrl + g
+pagejump = 1
+file_extension = png
+```
+
+### 2. 実行方法
+
+INIファイルを引数にしてプログラムを実行します。
+
+```
+python kindless.py kindless.ini
+```
+
+### 3. 操作手順
+
+1. Kindle for PCを起動し、対象書籍を開きます。
+2. プログラムを実行すると、タイトル入力画面が表示されます（自動入力も可能）。
+3. 入力後、自動的にフルスクリーンになり、キャプチャが開始されます。
+4. 最終ページに到達すると、自動で終了します。
+
+## ファイル構成
+
+* `kindless.py`: メインプログラム（キャプチャ処理）
+* `wxdialog.py`: GUIダイアログ関連処理（wxPython使用）
+* `WindowInfo.py`: Windowsのウィンドウ処理関連
+* `dataclass.py`: 設定用データクラス定義
+* `kindless.ini`: 設定ファイル（INI形式）
+
+## 注意事項
+
+* Kindle for PCの画面サイズや解像度設定によって、トリミング範囲や精度が変わることがあります。最適な設定を事前に調整してください。
+* 使用は個人の責任で行い、著作権法に抵触しない範囲で使用してください。
+
+
