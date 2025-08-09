@@ -94,6 +94,10 @@ def color_check(img: np.ndarray, mg:Margin) -> int:
 
 
 def capture(cfg: KindleSSConfig, dir_title: str, page: int):
+    # Kindle ウィンドウ存在確認（未検出なら即終了）
+    if GetWindowHandleWithName(cfg.window_title, cfg.execute_filename) is None:
+        SimpleDialog.infomation(title="エラー", label="Kindleが見つかりません", icon=Icon.Exclamation)
+        return False
     print('Cap start')
     sc_w, sc_h = pag.size()
 
@@ -129,8 +133,9 @@ def capture(cfg: KindleSSConfig, dir_title: str, page: int):
   
     loop = True
     while loop:
-        if GetWindowHandleWithName(cfg.window_title, cfg.execute_filename) == None:
-            sys.exit()
+        if GetWindowHandleWithName(cfg.window_title, cfg.execute_filename) is None:
+            # キャプチャ途中で閉じられた場合は終了
+            return False
         filename = osp.join(dir_title , str(page).zfill(3) + ext)
         start = time.perf_counter()
         while True:
@@ -184,7 +189,7 @@ def capture(cfg: KindleSSConfig, dir_title: str, page: int):
             os.remove(i.filename)
             imwrite(fn,s)
             print()
-    return
+    return True
 
 def thread(cv: threading.Condition, que: queue.Queue, trm: Margin, gray: Margin, out: queue.Queue,gs : int):
     end_flag = False
@@ -278,7 +283,10 @@ def main():
             SimpleDialog.infomation(title="エラー", label="ディレクトリが作成できませんでした", icon=Icon.Exclamation)
             sys.exit()
     time.sleep(cfg.fullscreen_wait)
-    capture(cfg, dir_title, page)
+    ok_cap = capture(cfg, dir_title, page)
+    if not ok_cap:
+        # 途中終了（Kindle未検出など）
+        return
 
 
 if __name__ == "__main__":
