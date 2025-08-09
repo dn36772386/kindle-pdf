@@ -4,17 +4,16 @@ if not exist .venv (
   py -3 -m venv .venv
 )
 set PY=.venv\Scripts\python.exe
+set PYW=.venv\Scripts\pythonw.exe
 
-"%PY%" -m pip install --upgrade pip
-"%PY%" -m pip install -r requirements.txt
+"%PY%" -m pip install --upgrade pip >nul 2>&1
+"%PY%" -m pip install -r requirements.txt >nul 2>&1
 
-rem デバッグ中は python.exe で起動（例外が見える）
-"%PY%" kindless_ui_min.py
-"%PY%" -m pip install -r requirements.txt || goto :eof
-
+rem UIを起動（pythonw.exeがあればそれを使用）
 if exist "%PYW%" (
-  "%PYW%" kindless_ui.py
+  start "" "%PYW%" kindless_ui.py
 ) else (
-  "%PY%" kindless_ui.py
+  start "" "%PY%" kindless_ui.py
 )
+
 exit /b 0
