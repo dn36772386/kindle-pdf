@@ -61,22 +61,91 @@ def _norm_ext(ext: str) -> str:
         return '.png'
     return '.' + ext.lstrip('.')
 
-def _activate_and_fullscreen(hwnd, fullscreen_key: str | None):
-    """前面化→最大化→全画面化。安定のため少し待機。"""
+def _ensure_fullscreen(hwnd, cfg):
+    """前面化→復元→最大化→(任意)F11→サイズ検証/再試行 (一本化)."""
+    import ctypes
+    user32 = ctypes.windll.user32
+    SW_RESTORE = 9
+    SW_SHOWMAXIMIZED = 3
+
+    def _rect():
+        try:
+            l, t, r, b = GetWindowRect(hwnd)
+            return r - l, b - t
+        except Exception:
+            return -1, -1
+
+    # 前面化
     try:
-        import ctypes
-        SW_SHOWMAXIMIZED = 3
-        ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWMAXIMIZED)
-        ctypes.windll.user32.SetForegroundWindow(hwnd)
+        SetForeWindow(hwnd)
+    except Exception:
+        print('[FS] SetForeWindow failed')
+    time.sleep(getattr(cfg, 'short_wait', 0.15))
+
+    # 復元→最大化 2回試行
+    for i in range(2):
+        try:
+            user32.ShowWindow(hwnd, SW_RESTORE)
+            time.sleep(0.05)
+            user32.ShowWindow(hwnd, SW_SHOWMAXIMIZED)
+        except Exception:
+            print(f'[FS] ShowWindow failed loop={i}')
+        time.sleep(0.12)
+
+    fk = getattr(cfg, 'fullscreen_key', None)
+    if fk:
+        try:
+            pag.press(fk)
+        except Exception:
+            print('[FS] fullscreen key press failed')
+        time.sleep(getattr(cfg, 'fullscreen_wait', 0.4))
+
+    # 検証 / 必要なら再F11
+    try:
+        sc_w, sc_h = pag.size()
+        w, h = _rect()
+        dw, dh = sc_w - w, sc_h - h
+        print(f'[FSCHK] screen=({sc_w},{sc_h}) win=({w},{h}) dw={dw} dh={dh}')
+        if fk and (dw > 40 or dh > 80):
+            print('[FSCHK] retry fullscreen key')
+            try:
+                pag.press(fk)
+            except Exception:
+                pass
+            time.sleep(0.4)
+            w2, h2 = _rect()
+            print(f'[FSCHK] after retry win=({w2},{h2})')
     except Exception:
         pass
-    time.sleep(0.2)
+
+def _send_next_page(hwnd, cfg, click_center: bool=False):
+    """Kindle にページ送りキーを確実に送る（必要に応じ中央クリック）。"""
     try:
-        if fullscreen_key:
-            pag.press(fullscreen_key)
-            time.sleep(0.3)
+        SetForeWindow(hwnd)
     except Exception:
         pass
+    time.sleep(getattr(cfg, 'short_wait', 0.05))
+    if click_center:
+        try:
+            sw, sh = pag.size()
+            pag.moveTo(sw/2, sh/2)
+            pag.click()
+        except Exception:
+            pass
+        time.sleep(0.05)
+    key = getattr(cfg, 'nextpage_key', None)
+    if not key:
+        print('[NEXT] no nextpage_key configured')
+        return False
+    try:
+        pag.press(key)
+        print(f'[NEXT] pressed {key}')
+        return True
+    except Exception as e:
+        print(f'[NEXT] press failed: {e}')
+        return False
+
+## 旧版 _ensure_fullscreen を統合済み（上記に一本化）
 
 rep_list = [['　',' '],[':','：'],[';','；'],['（','('],['）',')'],['［','['],['］',']'],
             ['&','＆'],['"','”'],['|','｜'],['?','？'],['!','！'],['*','＊'],['\\','￥'],
@@ -196,14 +265,21 @@ def trim_check(img: np.ndarray, color, margin: Margin):
 
 
 def color_check(img: np.ndarray, mg:Margin) -> int:
-    # width / height を取り違えていたバグを修正
+    # width / height を取り違えていたバグを修正 + 空領域ガード
     imx = img.shape[1]  # width
     imy = img.shape[0]  # height
-    img_blue, img_green, img_red = cv2.split(img[mg.top : imy - mg.bottom , mg.left : imx - mg.right])
+    x0 = max(0, mg.left)
+    y0 = max(0, mg.top)
+    x1 = max(0, imx - max(0, mg.right))
+    y1 = max(0, imy - max(0, mg.bottom))
+    if x1 <= x0 or y1 <= y0:
+        # 空領域は差が無いとみなす
+        return 0
+    img_blue, img_green, img_red = cv2.split(img[y0:y1, x0:x1])
     img_bg = np.abs(img_blue.astype(int) - img_green.astype(int))
     img_gr = np.abs(img_green.astype(int) - img_red.astype(int))
     img_rb = np.abs(img_red.astype(int) - img_blue.astype(int))
-    return max(img_bg.max(),img_gr.max(),img_rb.max()) 
+    return max(img_bg.max(), img_gr.max(), img_rb.max()) 
 
 
 def capture(cfg: KindleSSConfig, dir_title: str, page: int):
@@ -216,7 +292,8 @@ def capture(cfg: KindleSSConfig, dir_title: str, page: int):
         SimpleDialog.infomation(title="エラー", label="Kindleが見つかりません", icon=Icon.Exclamation)
         _report("ERROR: KINDLE_NOT_FOUND")
         return False
-    _activate_and_fullscreen(hwnd, cfg.fullscreen_key)
+    # 念のため capture 開始直前にも適用
+    _ensure_fullscreen(hwnd, cfg)
     print('Cap start')
 
     cap = CaptureWrapper()
@@ -297,10 +374,10 @@ def capture(cfg: KindleSSConfig, dir_title: str, page: int):
             print('Page:', page, ' ', ss.shape, time.perf_counter() - start, 'sec')
             page += 1
             _report(f"PAGE {page}")
-            print(f"Pressing next page key: {cfg.nextpage_key}")
-            pag.press(cfg.nextpage_key)  # 押しっぱなし防止
-            if page % 5 == 0:
-                _activate_and_fullscreen(hwnd_now, cfg.fullscreen_key)
+            # ページ送り（毎回前面化してから送る）
+            _send_next_page(hwnd_now, cfg)
+            if page % 5 == 0:  # 定期的に全画面状態を再確認
+                _ensure_fullscreen(hwnd_now, cfg)
 
     if comic and cfg.trim_after_capture:
         with cv:
@@ -338,8 +415,8 @@ def capture(cfg: KindleSSConfig, dir_title: str, page: int):
 
 def thread(cv: threading.Condition, que: queue.Queue, trm: Margin, gray: Margin, out: queue.Queue,gs : int):
     end_flag = False
-    sc_w, sc_h = pag.size()
-    ml = sc_w
+    # 全ページの最小左・最大右を集計
+    ml = 1 << 30  # 十分大きく
     mr = 0
     while not end_flag:
         while not que.empty():
@@ -350,8 +427,16 @@ def thread(cv: threading.Condition, que: queue.Queue, trm: Margin, gray: Margin,
             tm = trim_check(arg.image, arg.image[1, 1],trm)
             ml = min(ml, tm[0])
             mr = max(mr, tm[1])
-            gst = Margin(gray.top, gray.bottom, gray.left + ml, mr - gray.right)
-            gr = (color_check(arg.image, gst) <= gs)
+            # 右マージンは右端からの距離で指定する必要がある
+            w = arg.image.shape[1]
+            gst_left = gray.left + ml
+            gst_right = gray.right + max(0, w - mr)
+            if gst_left >= w - gst_right:
+                # 空幅などで領域が無い: グレー判定はスキップ（True 扱い）
+                gr = True
+            else:
+                gst = Margin(gray.top, gray.bottom, gst_left, gst_right)
+                gr = (color_check(arg.image, gst) <= gs)
             imwrite(arg.filename, arg.image)
             rslt = ThreadResult(tm[0], tm[1], gr, arg.filename)
             out.put(rslt)
@@ -376,7 +461,7 @@ def main():
         return
 
     # 先に最大化 / 前面化 / 全画面化
-    _activate_and_fullscreen(ghwnd, cfg.fullscreen_key)
+    _ensure_fullscreen(ghwnd, cfg)
 
     t = GetWindowText(ghwnd)
     if (idx := t.find(' - ')) != -1:
@@ -387,8 +472,7 @@ def main():
         t = str(datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S"))
     if not cfg.auto_title:
         t = ''
-    SetForeWindow(ghwnd)
-    time.sleep(cfg.short_wait)
+    _ensure_fullscreen(ghwnd, cfg)
     if cfg.force_move_first_page:
         pag.hotkey(*cfg.pagejump_key)
         time.sleep(cfg.short_wait)
@@ -397,13 +481,13 @@ def main():
         time.sleep(cfg.capture_wait)
 
     # 再度念押し
-    _activate_and_fullscreen(ghwnd, cfg.fullscreen_key)
+    _ensure_fullscreen(ghwnd, cfg)
 
     sc_w, sc_h = pag.size()
     pag.moveTo(sc_w / 2, sc_h / 2)
     ok, book_title = SimpleDialog.askstring(title="タイトル入力", label="タイトルを入れてね", value=t, width=400)
     if not ok:
-        _activate_and_fullscreen(ghwnd, cfg.fullscreen_key)
+        _ensure_fullscreen(ghwnd, cfg)
         _report("ERROR: CAPTURE_ABORTED")
         return
     append = False
@@ -427,8 +511,7 @@ def main():
             shutil.rmtree(dir_title)
             os.makedirs(dir_title)
         else:
-            pag.press(cfg.fullscreen_key)
-            time.sleep(cfg.long_wait)
+            # （ここでタイトル入力ダイアログが出る）
             SimpleDialog.infomation(title="エラー", label="ディレクトリが存在します", icon=Icon.Exclamation)
             _report("ERROR: DIR_EXISTS")
             return
@@ -441,7 +524,8 @@ def main():
             SimpleDialog.infomation(title="エラー", label="ディレクトリが作成できませんでした", icon=Icon.Exclamation)
             _report("ERROR: MKDIR_FAILED")
             return
-    time.sleep(cfg.fullscreen_wait)
+    # ダイアログでフォーカスが外れるため、直前に再適用
+    _ensure_fullscreen(ghwnd, cfg)
     try:
         ok_cap = capture(cfg, dir_title, page)
         if not ok_cap:

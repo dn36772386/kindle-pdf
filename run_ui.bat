@@ -1,30 +1,15 @@
-
----
-
-### 7) `run_ui.bat`
-```bat
 @echo off
 setlocal
 if not exist .venv (
   py -3 -m venv .venv
 )
 set PY=.venv\Scripts\python.exe
-set PYW=.venv\Scripts\pythonw.exe
 
 "%PY%" -m pip install --upgrade pip
 "%PY%" -m pip install -r requirements.txt
 
-if exist "%PYW%" (
-  "%PYW%" kindless_ui.py
-@echo off
-setlocal
-if not exist .venv (
-  py -3 -m venv .venv
-)
-set PY=.venv\Scripts\python.exe
-set PYW=.venv\Scripts\pythonw.exe
-
-"%PY%" -m pip install --upgrade pip >nul 2>&1
+rem デバッグ中は python.exe で起動（例外が見える）
+"%PY%" kindless_ui_min.py
 "%PY%" -m pip install -r requirements.txt || goto :eof
 
 if exist "%PYW%" (
