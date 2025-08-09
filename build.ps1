@@ -14,6 +14,7 @@ if (-not (Test-Path .venv)) {
 if ($Target -eq 'core' -or $Target -eq 'all') {
   .\.venv\Scripts\pyinstaller --noconfirm --noconsole `
     --name Kindless `
+    --manifest dpi_aware.manifest `
     --add-data "kindless.ini;." `
     kindless.py
 }
@@ -21,7 +22,7 @@ if ($Target -eq 'core' -or $Target -eq 'all') {
 if ($Target -eq 'ui' -or $Target -eq 'all') {
   .\.venv\Scripts\pyinstaller --noconfirm --noconsole `
     --name KindlessUI `
-  --manifest dpi_aware.manifest `
+    --manifest dpi_aware.manifest `
     kindless_ui.py
 }
 

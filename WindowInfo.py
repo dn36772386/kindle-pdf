@@ -49,7 +49,7 @@ def EnumWindowsListProc(hwnd, lParam):
     buff = create_unicode_buffer(length + 1)
     windll.user32.GetWindowTextW(hwnd, buff, length + 1)
     if not any([buff.value.find(x) != -1 for x in ignores]) and buff.value != '':
-        windowlist.append({'Text': buff.value, 'HWND': hwnd, 'Pos': GetWindowRect(ghwnd), 'pid': GetWindowThreadProcessId(hwnd) , 'Location': GetWindowThreadProcessName(hwnd)})
+        windowlist.append({'Text': buff.value, 'HWND': hwnd, 'Pos': GetWindowRect(hwnd), 'pid': GetWindowThreadProcessId(hwnd) , 'Location': GetWindowThreadProcessName(hwnd)})
     return True
 
 def GetWindowThreadProcessId(hwnd):
