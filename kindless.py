@@ -296,7 +296,18 @@ def main():
         append = True
         book_title = book_title[1:]
     
-    dir_title = osp.join(cfg.base_save_folder,book_title)
+    # 保存先パスを確認
+    save_folder = cfg.base_save_folder
+    if not osp.exists(save_folder):
+        try:
+            os.makedirs(save_folder)
+        except:
+            # デフォルトフォルダを使用
+            save_folder = osp.join(osp.expanduser('~'), 'Documents', 'KindleCaptures')
+            if not osp.exists(save_folder):
+                os.makedirs(save_folder)
+    
+    dir_title = osp.join(save_folder, book_title)
     print(dir_title)
     page = 1
     

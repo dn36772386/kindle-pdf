@@ -26,6 +26,9 @@ def ensure_ini_exists(path: str) -> None:
         return
     
     cfg = KindleSSConfig()
+    # 保存先フォルダを設定
+    save_folder = "C:\\Users\\Public\\Documents\\KindleCaptures"
+    
     config = configparser.ConfigParser()
     config[SECTION] = {
         "window_title": cfg.window_title,
@@ -34,7 +37,7 @@ def ensure_ini_exists(path: str) -> None:
         "fullscreen_key": cfg.fullscreen_key,
         "pagejump_key": " + ".join(cfg.pagejump_key),
         "pagejump": cfg.pagejump,
-        "base_save_folder": cfg.base_save_folder,
+        "base_save_folder": save_folder,
         "overwrite": str(cfg.overwrite),
         "trim_after_capture": str(cfg.trim_after_capture),
         "force_move_first_page": str(cfg.force_move_first_page),
