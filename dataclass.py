@@ -47,8 +47,17 @@ def key_combination(strk : str)->list:
     lst = strk.split('+')
     return [i.strip() for i in lst]
 
-def file_extension(ext : str)->str:
-    return ext if ext[0] == '.' else '.' + ext
+def file_extension(ext: str) -> str:
+    """INIから読み込んだ拡張子を正規化.
+    空文字/None/ドット無し → '.png' を既定に。先頭ドットが無ければ付与。
+    大文字は小文字化して統一。
+    """
+    if not ext:
+        return '.png'
+    ext = ext.strip().lower()
+    if not ext:
+        return '.png'
+    return ext if ext.startswith('.') else '.' + ext
 
 special_function = { 'pagejump_key' : key_combination , 'file_extension' : file_extension }
 default_ini_name = 'kindless.ini'

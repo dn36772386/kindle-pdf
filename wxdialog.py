@@ -1,6 +1,21 @@
 import wx
 from enum import Enum
 
+# HiDPI（Per-Monitor v2）を最優先で有効化
+try:
+    import ctypes  # noqa: F401
+    ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)
+except Exception:
+    try:
+        import ctypes  # noqa: F401
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            import ctypes  # noqa: F401
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 app = wx.App()
 class Icon(Enum):
     Information = wx.ICON_INFORMATION

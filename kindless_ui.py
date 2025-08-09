@@ -29,6 +29,15 @@ def _enable_hi_dpi():
 # 既存の設定ローダーを再利用
 from dataclass import KindleSSConfig, read_config  # type: ignore
 
+def _norm_ext_ui(ext: str) -> str:
+    """UI側：拡張子テキストを .付き小文字へ正規化 (空は .png)。"""
+    if not ext:
+        return '.png'
+    ext = ext.strip().lower()
+    if not ext:
+        return '.png'
+    return ext if ext.startswith('.') else '.' + ext
+
 APP_NAME = "Kindless"
 SECTION = "KINDLESS"
 
@@ -197,8 +206,9 @@ class MainFrame(wx.Frame):
 
     def collect_to_config(self) -> configparser.ConfigParser:
         cfg = configparser.ConfigParser()
-        ext = self.cmb_ext.GetValue()
-        if ext.startswith("."):
+        ext = self.cmb_ext.GetValue().strip().lower()
+        # INI にはドット無しで保存（従来互換）; Runtime では正規化される
+        if ext.startswith('.'):
             ext = ext[1:]
         cfg[SECTION] = {
             "window_title": self.txt_title.GetValue().strip() or "Kindle",
